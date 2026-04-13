@@ -1,0 +1,118 @@
+# OnlyMetrix Benchmark Questions
+# Same methodology as dbt-labs/dbt-llm-sl-bench
+# Dataset: UCI Online Retail (invoices, customers, products, invoice_items)
+# Each question has a gold SQL query — agent output compared via exact data diff
+
+- name: total_revenue
+  prompt: "What is the total revenue?"
+  gold_sql: "SELECT SUM(total_amount) AS total_revenue FROM invoices WHERE NOT is_cancellation"
+
+- name: total_customers
+  prompt: "How many customers do we have?"
+  gold_sql: "SELECT COUNT(*) AS total_customers FROM customers"
+
+- name: total_invoices
+  prompt: "How many invoices do we have?"
+  gold_sql: "SELECT COUNT(*) AS total_invoices FROM invoices"
+
+- name: avg_order_value
+  prompt: "What is the average order value?"
+  gold_sql: "SELECT AVG(total_amount) AS avg_order_value FROM invoices"
+
+- name: revenue_by_country_top5
+  prompt: "What are the top 5 countries by revenue?"
+  gold_sql: |
+    SELECT country, SUM(total_amount) AS revenue
+    FROM invoices WHERE NOT is_cancellation
+    GROUP BY country ORDER BY revenue DESC LIMIT 5
+
+- name: monthly_revenue
+  prompt: "Show me monthly revenue for the last 12 months"
+  gold_sql: |
+    SELECT DATE_TRUNC('month', invoice_date) AS month, SUM(total_amount) AS revenue
+    FROM invoices WHERE NOT is_cancellation
+    GROUP BY 1 ORDER BY 1 DESC LIMIT 12
+
+- name: churn_count
+  prompt: "How many customers have churned?"
+  gold_sql: "SELECT COUNT(*) AS churned FROM customers WHERE is_churned"
+
+- name: churn_rate
+  prompt: "What is the churn rate?"
+  gold_sql: |
+    SELECT ROUND(SUM(CASE WHEN is_churned THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS churn_pct
+    FROM customers
+
+- name: top_products_by_revenue
+  prompt: "What are the top 10 products by revenue?"
+  gold_sql: |
+    SELECT p.description, SUM(ii.line_total) AS revenue
+    FROM invoice_items ii
+    JOIN products p ON p.id = ii.product_id
+    JOIN invoices i ON i.id = ii.invoice_id
+    WHERE NOT i.is_cancellation AND ii.quantity > 0
+    GROUP BY p.description ORDER BY revenue DESC LIMIT 10
+
+- name: revenue_by_quarter
+  prompt: "Show me revenue by quarter"
+  gold_sql: |
+    SELECT DATE_TRUNC('quarter', invoice_date) AS quarter, SUM(total_amount) AS revenue
+    FROM invoices WHERE NOT is_cancellation
+    GROUP BY 1 ORDER BY 1
+
+- name: cancellation_count
+  prompt: "How many orders were cancelled?"
+  gold_sql: "SELECT COUNT(*) AS cancellations FROM invoices WHERE is_cancellation"
+
+- name: cancellation_rate
+  prompt: "What percentage of orders are cancellations?"
+  gold_sql: |
+    SELECT ROUND(SUM(CASE WHEN is_cancellation THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS cancel_pct
+    FROM invoices
+
+- name: customers_by_country
+  prompt: "How many customers do we have per country?"
+  gold_sql: |
+    SELECT country, COUNT(*) AS customers
+    FROM customers GROUP BY country
+    HAVING COUNT(*) >= 10
+    ORDER BY customers DESC
+
+- name: avg_items_per_order
+  prompt: "What is the average number of items per order?"
+  gold_sql: |
+    SELECT ROUND(AVG(item_count), 1) AS avg_items
+    FROM (SELECT invoice_id, COUNT(*) AS item_count FROM invoice_items GROUP BY invoice_id) t
+
+- name: revenue_per_customer
+  prompt: "What is the average revenue per customer?"
+  gold_sql: |
+    SELECT ROUND(AVG(customer_revenue), 2) AS avg_revenue_per_customer
+    FROM (SELECT customer_id, SUM(total_amount) AS customer_revenue FROM invoices WHERE NOT is_cancellation GROUP BY customer_id) t
+
+- name: uk_revenue_share
+  prompt: "What percentage of revenue comes from the UK?"
+  gold_sql: |
+    SELECT ROUND(
+      SUM(CASE WHEN country = 'United Kingdom' THEN total_amount ELSE 0 END) * 100.0 /
+      SUM(total_amount), 1
+    ) AS uk_pct
+    FROM invoices WHERE NOT is_cancellation
+
+- name: unique_products_sold
+  prompt: "How many unique products have we sold?"
+  gold_sql: "SELECT COUNT(DISTINCT product_id) AS unique_products FROM invoice_items WHERE quantity > 0"
+
+- name: largest_single_order
+  prompt: "What was the largest single order by value?"
+  gold_sql: "SELECT MAX(total_amount) AS largest_order FROM invoices WHERE NOT is_cancellation"
+
+- name: orders_per_customer
+  prompt: "What is the average number of orders per customer?"
+  gold_sql: |
+    SELECT ROUND(AVG(order_count), 1) AS avg_orders
+    FROM (SELECT customer_id, COUNT(*) AS order_count FROM invoices GROUP BY customer_id) t
+
+- name: negative_amount_count
+  prompt: "How many invoices have negative amounts?"
+  gold_sql: "SELECT COUNT(*) AS negative_invoices FROM invoices WHERE total_amount < 0"

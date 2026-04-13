@@ -1,0 +1,6 @@
+name: 'benchmark'
+version: '1.0.0'
+profile: 'benchmark'
+model-paths: ["models"]
+target-path: "target"
+clean-targets: ["target"]

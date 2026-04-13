@@ -1,0 +1,12 @@
+benchmark:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      port: 5432
+      user: "{{ env_var('DB_USER', 'postgres') }}"
+      password: "{{ env_var('DB_PASSWORD', '') }}"
+      dbname: "{{ env_var('DB_NAME', 'retail') }}"
+      schema: public
+      threads: 4

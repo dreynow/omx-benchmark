@@ -1,0 +1,62 @@
+version: 2
+
+models:
+  - name: stg_invoices
+    description: "Sales invoices. is_cancellation=true means returned/cancelled order."
+    columns:
+      - name: id
+        description: "Primary key"
+      - name: customer_id
+        description: "Foreign key to customers"
+      - name: invoice_date
+        description: "Date of invoice"
+      - name: total_amount
+        description: "Invoice total in GBP"
+      - name: country
+        description: "Customer country for this invoice"
+      - name: is_cancellation
+        description: "true = cancelled/returned order"
+
+  - name: stg_customers
+    description: "Retail customers from UCI dataset"
+    columns:
+      - name: id
+        description: "Primary key"
+      - name: customer_ref
+        description: "Original UCI customer ID"
+      - name: country
+        description: "Customer country"
+      - name: first_seen
+        description: "First purchase date"
+      - name: total_spent
+        description: "Lifetime revenue in GBP"
+      - name: total_orders
+        description: "Lifetime order count"
+      - name: is_churned
+        description: "true if no orders in last 90 days"
+
+  - name: stg_products
+    description: "Product catalog"
+    columns:
+      - name: id
+        description: "Primary key"
+      - name: stock_code
+        description: "Product SKU"
+      - name: description
+        description: "Product name"
+
+  - name: stg_invoice_items
+    description: "Line items. quantity can be negative for returns."
+    columns:
+      - name: id
+        description: "Primary key"
+      - name: invoice_id
+        description: "Foreign key to invoices"
+      - name: product_id
+        description: "Foreign key to products"
+      - name: quantity
+        description: "Quantity ordered (negative for returns)"
+      - name: unit_price
+        description: "Unit price in GBP"
+      - name: line_total
+        description: "quantity * unit_price in GBP"

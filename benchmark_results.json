@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-04-13T10:33:11Z",
+  "model": "claude-sonnet-4-6",
+  "iterations": 3,
+  "results": {
+    "sql": {
+      "reliability": 0.7,
+      "coverage": 1.0,
+      "correct": 42,
+      "total": 60
+    },
+    "omx_agent": {
+      "reliability": 0.9833333333333333,
+      "coverage": 0.9833333333333333,
+      "correct": 59,
+      "total": 60
+    }
+  }
+}

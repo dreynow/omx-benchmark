@@ -1,0 +1,253 @@
+# Set your database URL here
+database_url: postgres://user:password@localhost:5432/retail
+
+limits:
+  max_rows: 1000
+  default_rows: 100
+  query_timeout_seconds: 30
+
+allowed_schemas:
+  - public
+
+ontology:
+  joins:
+    - from: invoice_items
+      to: invoices
+      on: invoice_items.invoice_id = invoices.id
+    - from: invoices
+      to: customers
+      on: invoices.customer_id = customers.id
+    - from: invoice_items
+      to: products
+      on: invoice_items.product_id = products.id
+
+context:
+  - table: customers
+    description: "Retail customers. customer_ref is the original UCI ID. is_churned flags inactive customers."
+    columns:
+      is_churned: "true if customer has no orders in last 90 days"
+      total_spent: "Lifetime revenue in GBP"
+  - table: invoices
+    description: "Sales invoices. is_cancellation=true means returned/cancelled order."
+    columns:
+      total_amount: "Invoice total in GBP"
+      is_cancellation: "true = cancelled/returned order"
+      country: "Customer country for this invoice"
+  - table: invoice_items
+    description: "Line items. quantity can be negative for returns."
+    columns:
+      line_total: "quantity * unit_price in GBP"
+  - table: products
+    description: "Product catalog from UCI retail dataset."
+
+metrics:
+  # --- Revenue metrics ---
+
+  - name: total_revenue
+    description: "Total revenue in GBP excluding cancellations. Use for 'what is total revenue' or 'how much revenue'."
+    sql: "SELECT SUM(total_amount) AS revenue_gbp FROM invoices WHERE NOT is_cancellation"
+    source_tables: [invoices]
+    tags: [finance, revenue]
+
+  - name: revenue_by_month
+    description: "Monthly revenue trend. Already grouped by month — do NOT add a dimension parameter. Use for 'monthly revenue', 'revenue over time', 'revenue last 12 months'."
+    sql: |
+      SELECT DATE_TRUNC('month', invoice_date) AS month,
+             SUM(total_amount) AS revenue_gbp
+      FROM invoices WHERE NOT is_cancellation
+      GROUP BY 1 ORDER BY 1
+    source_tables: [invoices]
+    tags: [finance]
+
+  - name: revenue_by_country
+    description: "Revenue breakdown by country. Already grouped by country — do NOT add a dimension parameter. Use for 'revenue by country', 'top countries by revenue'."
+    sql: |
+      SELECT country, SUM(total_amount) AS revenue_gbp
+      FROM invoices WHERE NOT is_cancellation
+      GROUP BY 1 ORDER BY 2 DESC
+    source_tables: [invoices]
+    tags: [finance]
+
+  - name: quarterly_revenue
+    description: "Revenue by quarter. Already grouped by quarter — do NOT add a dimension parameter. Use for 'quarterly revenue', 'revenue by quarter'."
+    sql: |
+      SELECT DATE_TRUNC('quarter', invoice_date) AS quarter,
+             SUM(total_amount) AS revenue_gbp
+      FROM invoices WHERE NOT is_cancellation
+      GROUP BY 1 ORDER BY 1
+    source_tables: [invoices]
+    tags: [finance]
+
+  - name: revenue_per_customer
+    description: "Average revenue per customer in GBP. Use for 'average revenue per customer', 'revenue per customer', 'avg spend per customer'."
+    sql: |
+      SELECT ROUND(AVG(customer_revenue), 2) AS avg_revenue_per_customer
+      FROM (SELECT customer_id, SUM(total_amount) AS customer_revenue FROM invoices WHERE NOT is_cancellation GROUP BY customer_id) t
+    source_tables: [invoices]
+    tags: [finance, customers]
+
+  - name: uk_revenue_share
+    description: "Percentage of total revenue from the United Kingdom. Use for 'UK revenue share', 'what percentage of revenue comes from UK'."
+    sql: |
+      SELECT ROUND(
+        SUM(CASE WHEN country = 'United Kingdom' THEN total_amount ELSE 0 END) * 100.0 /
+        SUM(total_amount), 1
+      ) AS uk_pct
+      FROM invoices WHERE NOT is_cancellation
+    source_tables: [invoices]
+    tags: [finance, geography]
+
+  - name: total_amount
+    description: "Total invoice amount in GBP including cancellations. Different from total_revenue which excludes cancellations."
+    sql: "SELECT SUM(total_amount) AS total_amount FROM invoices"
+    source_tables: [invoices]
+    tags: [finance, revenue]
+    time_column: invoice_date
+
+  # --- Customer metrics ---
+
+  - name: customers_count
+    description: "Total number of customers. Use for 'how many customers'."
+    sql: "SELECT COUNT(*) AS total_customers FROM customers"
+    source_tables: [customers]
+    tags: [customers, count]
+
+  - name: customer_count
+    description: "Customer summary with total count, churned count, and churn percentage. Use when you need all three numbers together."
+    sql: |
+      SELECT COUNT(*) AS total,
+             SUM(CASE WHEN is_churned THEN 1 ELSE 0 END) AS churned,
+             ROUND(SUM(CASE WHEN is_churned THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS churn_pct
+      FROM customers
+    source_tables: [customers]
+    tags: [customers]
+
+  - name: customers_by_country
+    description: "Number of customers per country. Already grouped by country — do NOT add a dimension parameter. Use for 'customers per country', 'how many customers in each country', 'customers by country'."
+    sql: |
+      SELECT country, COUNT(*) AS customers
+      FROM customers GROUP BY country
+      HAVING COUNT(*) >= 10
+      ORDER BY customers DESC
+    source_tables: [customers]
+    tags: [customers, geography]
+
+  - name: churn_count
+    description: "Number of churned customers. Use for 'how many customers churned', 'churned customers count'."
+    sql: "SELECT COUNT(*) AS churned FROM customers WHERE is_churned"
+    source_tables: [customers]
+    tags: [customers, churn]
+
+  - name: churn_rate
+    description: "Customer churn rate as a percentage. Use for 'what is the churn rate', 'churn percentage'."
+    sql: |
+      SELECT ROUND(SUM(CASE WHEN is_churned THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS churn_pct
+      FROM customers
+    source_tables: [customers]
+    tags: [customers, churn]
+
+  - name: churn_by_country
+    description: "Churn rate by country with customer counts. Already grouped by country — do NOT add a dimension parameter."
+    sql: |
+      SELECT country,
+             COUNT(*) AS customers,
+             SUM(CASE WHEN is_churned THEN 1 ELSE 0 END) AS churned,
+             ROUND(SUM(CASE WHEN is_churned THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS churn_pct
+      FROM customers
+      GROUP BY 1
+      HAVING COUNT(*) >= 10
+      ORDER BY churn_pct DESC
+    source_tables: [customers]
+    tags: [customers, churn]
+
+  # --- Invoice / order metrics ---
+
+  - name: invoices_count
+    description: "Total number of invoices. Use for 'how many invoices', 'total invoices'."
+    sql: "SELECT COUNT(*) AS total_invoices FROM invoices"
+    source_tables: [invoices]
+    tags: [invoices, count]
+    time_column: invoice_date
+
+  - name: avg_order_value
+    description: "Average order value (average invoice amount) in GBP. Use for 'average order value', 'avg order value', 'AOV'."
+    sql: "SELECT AVG(total_amount) AS avg_order_value FROM invoices"
+    source_tables: [invoices]
+    tags: [finance, average]
+    time_column: invoice_date
+
+  - name: avg_amount
+    description: "Average invoice amount in GBP. Alias for avg_order_value."
+    sql: "SELECT AVG(total_amount) AS avg_amount FROM invoices"
+    source_tables: [invoices]
+    tags: [finance, average]
+    time_column: invoice_date
+
+  - name: cancellation_count
+    description: "Number of cancelled orders. Use for 'how many orders cancelled', 'cancellation count', 'cancelled orders'."
+    sql: "SELECT COUNT(*) AS cancellations FROM invoices WHERE is_cancellation"
+    source_tables: [invoices]
+    tags: [invoices, cancellations]
+
+  - name: cancellation_rate
+    description: "Percentage of orders that are cancellations. Use for 'cancellation rate', 'what percentage are cancellations'."
+    sql: |
+      SELECT ROUND(SUM(CASE WHEN is_cancellation THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS cancel_pct
+      FROM invoices
+    source_tables: [invoices]
+    tags: [invoices, cancellations]
+
+  - name: largest_single_order
+    description: "Largest single order by total amount in GBP. Use for 'largest order', 'biggest order', 'max order value'."
+    sql: "SELECT MAX(total_amount) AS largest_order FROM invoices WHERE NOT is_cancellation"
+    source_tables: [invoices]
+    tags: [finance, invoices]
+
+  - name: orders_per_customer
+    description: "Average number of orders per customer. Use for 'orders per customer', 'avg orders per customer', 'how many orders does each customer place'."
+    sql: |
+      SELECT ROUND(AVG(order_count), 1) AS avg_orders
+      FROM (SELECT customer_id, COUNT(*) AS order_count FROM invoices GROUP BY customer_id) t
+    source_tables: [invoices]
+    tags: [invoices, customers]
+
+  - name: negative_amount_count
+    description: "Number of invoices with negative total amounts (returns/adjustments). Use for 'negative amounts', 'invoices with negative amounts'."
+    sql: "SELECT COUNT(*) AS negative_invoices FROM invoices WHERE total_amount < 0"
+    source_tables: [invoices]
+    tags: [invoices, data_quality]
+
+  # --- Product metrics ---
+
+  - name: top_products
+    description: "Top products by revenue with units sold. Already grouped by product — do NOT add a dimension parameter. Use for 'top products', 'best selling products', 'products by revenue', 'top 10 products'."
+    sql: |
+      SELECT p.description, p.stock_code,
+             SUM(ii.quantity) AS units_sold,
+             SUM(ii.line_total) AS revenue_gbp
+      FROM invoice_items ii
+      JOIN products p ON p.id = ii.product_id
+      JOIN invoices i ON i.id = ii.invoice_id
+      WHERE NOT i.is_cancellation AND ii.quantity > 0
+      GROUP BY p.description, p.stock_code
+      ORDER BY revenue_gbp DESC
+    source_tables: [invoice_items, products, invoices]
+    tags: [products]
+
+  - name: unique_products_sold
+    description: "Count of distinct products that have been sold. Use for 'how many unique products', 'unique products sold', 'number of different products'."
+    sql: "SELECT COUNT(DISTINCT product_id) AS unique_products FROM invoice_items WHERE quantity > 0"
+    source_tables: [invoice_items]
+    tags: [products]
+
+  - name: avg_items_per_order
+    description: "Average number of line items per order. Use for 'average items per order', 'avg items per order', 'how many items per order'."
+    sql: |
+      SELECT ROUND(AVG(item_count), 1) AS avg_items
+      FROM (SELECT invoice_id, COUNT(*) AS item_count FROM invoice_items GROUP BY invoice_id) t
+    source_tables: [invoice_items]
+    tags: [products, invoices]
+
+policies:
+  only_metrics: false
+  log_all_queries: true
