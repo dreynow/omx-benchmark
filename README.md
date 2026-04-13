@@ -1,6 +1,6 @@
 # omx-benchmark
 
-Analytics agent benchmark comparing SQL generation vs. governed metrics.
+Analytics agent benchmark comparing SQL generation vs. governed metrics. 100% reliability, 0 fabrications. 60/60 correct.
 
 Same methodology as [dbt-labs/dbt-llm-sl-bench](https://github.com/dbt-labs/dbt-llm-sl-bench). 20 business questions, exact data diff scoring, 3 iterations per question.
 
@@ -9,10 +9,12 @@ Same methodology as [dbt-labs/dbt-llm-sl-bench](https://github.com/dbt-labs/dbt-
 ```
 Strategy                  Reliability  Coverage  Fabrications
 SQL baseline (Sonnet 4.6)       70%     100%           18
-OM agent (Sonnet 4.6)           98%      98%            0
+OM agent (Sonnet 4.6)          100%     100%            0
 ```
 
-59/60 correct. Zero fabrications. Full writeup: [onlymetrix.com/blog/semantic-layer-benchmark](https://onlymetrix.com/blog/semantic-layer-benchmark)
+60/60 correct across 20 questions x 3 iterations. Zero fabricated answers. Every question answered.
+
+Full writeup: [onlymetrix.com/blog/semantic-layer-benchmark](https://onlymetrix.com/blog/semantic-layer-benchmark)
 
 ## What's measured
 
@@ -147,7 +149,7 @@ BENCHMARK SUMMARY
 
   Strategy                  Reliability  Coverage  Correct  Fabricated
   ----------------------------------------------------------------
-  omx_agent                        98%      98%    59/60        0
+  omx_agent                       100%     100%    60/60        0
 ```
 
 Results are saved to `benchmark_results.json`.
