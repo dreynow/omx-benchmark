@@ -20,8 +20,8 @@ def check_database(db_url: str) -> bool:
     try:
         import psycopg2
     except ImportError:
-        print("  SKIP: psycopg2 not installed (pip install psycopg2-binary)")
-        return True
+        print("  FAIL: psycopg2 not installed (pip install psycopg2-binary)")
+        return False
 
     try:
         conn = psycopg2.connect(db_url)
@@ -58,8 +58,8 @@ def check_api(api_url: str) -> bool:
     try:
         import httpx
     except ImportError:
-        print("  SKIP: httpx not installed (pip install httpx)")
-        return True
+        print("  FAIL: httpx not installed (pip install httpx)")
+        return False
 
     # Check metrics endpoint
     try:
