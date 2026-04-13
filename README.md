@@ -30,10 +30,20 @@ UCI Online Retail dataset. Real e-commerce transaction data.
 
 | Table | Rows | Description |
 |-------|------|-------------|
-| invoices | ~500K | Sales invoices with amounts, dates, countries |
-| customers | ~4K | Customer records with churn flags |
+| invoices | ~45K | Sales invoices with amounts, dates, countries |
+| customers | ~6K | Customer records with churn flags |
 | products | ~5K | Product catalog |
-| invoice_items | ~500K | Line items with quantities and prices |
+| invoice_items | ~825K | Line items with quantities and prices |
+
+### Why UCI Online Retail, not ACME Insurance
+
+dbt Labs used the ACME Insurance dataset with 43 questions about policies, claims, and loss ratios. Their dbt models were built specifically to answer those questions. We chose UCI Online Retail because:
+
+1. **Real transaction data**, not a benchmark dataset designed for testing
+2. **Questions written before the metric layer was built**. No circular advantage.
+3. **Reflects the kind of data OM users actually work with**: e-commerce, revenue, customers, products
+
+The comparison is methodology, not dataset. Both benchmarks measure the same thing: can an agent answer business questions correctly, without fabricating answers?
 
 ## Questions
 
@@ -165,7 +175,7 @@ The scoring logic is generic. The questions are templates you can adapt.
 ## Related work
 
 - [Claire Gouze: How to make Semantic Layer work for Analytics Agents](https://thenewaiorder.substack.com/p/how-to-make-semantic-layer-work-for) (13% to 82%, 4 weeks)
-- [dbt Labs: Semantic Layer vs. Text-to-SQL benchmark](https://github.com/dbt-labs/dbt-llm-sl-bench) (98-100%)
+- [dbt Labs: Semantic Layer vs. Text-to-SQL benchmark](https://github.com/dbt-labs/dbt-llm-sl-bench) (ACME Insurance, 43 questions, 3 strategies)
 - [OnlyMetrix blog: full writeup of these results](https://onlymetrix.com/blog/semantic-layer-benchmark)
 
 ## License
