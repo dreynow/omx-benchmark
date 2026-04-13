@@ -220,17 +220,16 @@ metrics:
   # --- Product metrics ---
 
   - name: top_products
-    description: "Top products by revenue with units sold. Already grouped by product — do NOT add a dimension parameter. Use for 'top products', 'best selling products', 'products by revenue', 'top 10 products'."
+    description: "Top products by revenue. Already grouped by product — do NOT add a dimension parameter. Returns one row per product description with total revenue. Use for 'top products', 'best selling products', 'products by revenue', 'top 10 products'. Pass limit to get top N."
     sql: |
-      SELECT p.description, p.stock_code,
-             SUM(ii.quantity) AS units_sold,
-             SUM(ii.line_total) AS revenue_gbp
+      SELECT p.description,
+             SUM(ii.line_total) AS revenue
       FROM invoice_items ii
       JOIN products p ON p.id = ii.product_id
       JOIN invoices i ON i.id = ii.invoice_id
       WHERE NOT i.is_cancellation AND ii.quantity > 0
-      GROUP BY p.description, p.stock_code
-      ORDER BY revenue_gbp DESC
+      GROUP BY p.description
+      ORDER BY revenue DESC
     source_tables: [invoice_items, products, invoices]
     tags: [products]
 
