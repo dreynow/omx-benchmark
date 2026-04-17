@@ -1,32 +1,12 @@
 {
   "baseline_source": "lockfile",
-  "breaking": [
-    {
-      "change_type": "column_possibly_renamed",
-      "confidence": "high",
-      "fix": "omx scaffold --fix total_revenue",
-      "impact": {
-        "canvas_dashboards": 2,
-        "canvas_titles": [
-          "Revenue Dashboard",
-          "Weekly Review"
-        ],
-        "decisions_note": "decision tracking requires cloud mode",
-        "recent_decisions": 0
-      },
-      "metric": "total_revenue",
-      "model": "stg_invoices",
-      "new_column": "invoice_amount_gbp",
-      "old_column": "total_amount",
-      "tier": "core"
-    }
-  ],
+  "breaking": [],
   "new_columns": [],
   "new_models": [],
   "removed_models": [],
-  "status": "blocking",
+  "status": "clean",
   "summary": {
-    "breaking": 1,
+    "breaking": 0,
     "existing": 1,
     "models_checked": 1,
     "new": 0,
