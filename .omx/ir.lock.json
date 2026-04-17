@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "metrics": [
+    {
+      "name": "total_revenue",
+      "base_table": "public.stg_invoices",
+      "sql": "SELECT SUM(total_amount) AS total_revenue FROM public.stg_invoices WHERE NOT is_cancellation",
+      "tier": "core",
+      "canvas_references": [
+        {"canvas_id": "canvas_rev_dash", "canvas_title": "Revenue Dashboard", "card_id": "card_a", "card_type": "chart"},
+        {"canvas_id": "canvas_weekly",   "canvas_title": "Weekly Review",     "card_id": "card_b", "card_type": "kpi"}
+      ]
+    },
+    {
+      "name": "revenue_by_country",
+      "base_table": "public.stg_invoices",
+      "sql": "SELECT country, SUM(total_amount) FROM public.stg_invoices WHERE NOT is_cancellation GROUP BY country",
+      "tier": "standard",
+      "canvas_references": []
+    }
+  ],
+  "tables": [
+    {"qualified": "public.stg_invoices", "columns": ["id", "customer_id", "invoice_date", "total_amount", "country", "is_cancellation"]},
+    {"qualified": "public.stg_customers", "columns": ["id", "customer_ref", "country", "first_seen", "total_spent", "total_orders", "is_churned"]},
+    {"qualified": "public.stg_products", "columns": ["id", "sku", "name", "category", "unit_price"]},
+    {"qualified": "public.stg_invoice_items", "columns": ["id", "invoice_id", "product_id", "quantity", "unit_price", "line_total"]}
+  ]
+}
