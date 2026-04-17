@@ -5,8 +5,9 @@
 # schema change. Cloud mode shows decision history; self-hosted shows
 # canvas impact only.
 #
-# This workflow installs onlymetrix from a git tag (v0.6.0+). Once the
-# package is on PyPI, switch to `pip install onlymetrix>=0.6.0`.
+# Installs the onlymetrix PyPI package (0.6.0+). The Python CLI dispatches
+# the `ci` subcommands to a Rust binary fetched lazily from the matching
+# GitHub Release on first use — no separate install step required.
 
 name: OnlyMetrix CI
 
@@ -42,7 +43,7 @@ jobs:
       - name: Install dbt + OnlyMetrix
         run: |
           pip install --quiet dbt-core dbt-postgres
-          pip install --quiet "git+https://github.com/dreynow/onlymetrix-python@v0.6.0"
+          pip install --quiet "onlymetrix>=0.6.0"
 
       - name: dbt parse (manifest only — no warehouse needed)
         working-directory: benchmark_dbt
