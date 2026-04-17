@@ -27,7 +27,6 @@ jobs:
   omx-check:
     runs-on: ubuntu-latest
     env:
-      DBT_PROFILES_DIR: benchmark_dbt
       OMX_API_URL: ${{ secrets.OMX_API_URL }}
       OMX_API_KEY: ${{ secrets.OMX_API_KEY }}
     steps:
