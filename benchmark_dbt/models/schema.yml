@@ -10,7 +10,7 @@ models:
         description: "Foreign key to customers"
       - name: invoice_date
         description: "Date of invoice"
-      - name: total_amount
+      - name: invoice_amount_gbp
         description: "Invoice total in GBP"
       - name: country
         description: "Customer country for this invoice"

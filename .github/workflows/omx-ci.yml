@@ -1,0 +1,106 @@
+# OnlyMetrix CI — live validation run for benchmark_dbt.
+#
+# PACKAGING BLOCKER
+# This workflow uses a pre-generated omx-ci-output.json to validate the
+# comment/dedup plumbing end-to-end on real GitHub infrastructure. The
+# commented-out `Build omx from source` step below is the customer-facing
+# path; it requires either:
+#   (a) onlymetrix PyPI package bundling the Rust binary, or
+#   (b) a public github.com/dreynow/onlymetrix repo for cargo install, or
+#   (c) a prebuilt binary in GitHub Releases.
+# Resolve one of those before shipping the workflow to customers.
+
+name: OnlyMetrix CI
+
+on:
+  pull_request:
+    paths:
+      - 'benchmark_dbt/models/**'
+      - 'benchmark_dbt/**/*.yml'
+      - '.github/workflows/omx-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  omx-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Real path (requires omx binary distribution — see PACKAGING BLOCKER above):
+      # - name: Set up Python
+      #   uses: actions/setup-python@v5
+      #   with: { python-version: '3.11', cache: pip }
+      # - name: Install dbt-postgres
+      #   run: pip install --quiet dbt-core dbt-postgres
+      # - name: dbt parse (manifest only — no warehouse needed)
+      #   working-directory: benchmark_dbt
+      #   run: dbt parse
+      # - name: Install OnlyMetrix CLI
+      #   run: pip install --quiet onlymetrix   # or cargo install from source
+      # - name: Run omx ci check
+      #   id: omx_check
+      #   continue-on-error: true
+      #   run: |
+      #     omx ci check --manifest benchmark_dbt/target/manifest.json --strict
+
+      - name: Stage pre-generated omx output (plumbing validation)
+        id: omx_check
+        continue-on-error: true
+        run: |
+          cp .github/workflows/omx-ci-output-sample.json omx-ci-output.json
+          status=$(python3 -c "import json;print(json.load(open('omx-ci-output.json'))['status'])")
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" = "blocking" ] || [ "$status" = "error" ]; then
+            echo 'omx reports breaking — will fail build after comment'
+            exit 1
+          fi
+
+      - name: Post or update PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const { renderComment, MARKER } = require(
+              path.resolve(process.env.GITHUB_WORKSPACE, '.github/workflows/format-comment.js')
+            );
+
+            let output;
+            try {
+              output = JSON.parse(fs.readFileSync('omx-ci-output.json', 'utf8'));
+            } catch (e) {
+              core.setFailed(`omx-ci-output.json missing or invalid: ${e.message}`);
+              return;
+            }
+            const body = renderComment(output);
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const existing = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100,
+            });
+            const prior = existing.find(c => c.body && c.body.includes(MARKER));
+
+            if (prior) {
+              await github.rest.issues.updateComment({
+                owner, repo, comment_id: prior.id, body,
+              });
+              core.info(`Updated existing OM comment ${prior.id}`);
+            } else {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number, body,
+              });
+              core.info('Posted new OM comment');
+            }
+
+      - name: Fail PR if breaking
+        if: steps.omx_check.outcome == 'failure'
+        run: |
+          echo 'omx reported breaking — failing PR build'
+          exit 1
